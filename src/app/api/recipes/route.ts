@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -9,25 +9,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ found: false });
   }
 
-  const slug = query
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
-  const { data } = await supabaseServer
+  const { data, error } = await supabaseServer
     .from("recipes")
-    .select("slug")
-    .eq("slug", slug)
-    .single();
+    .select("slug, title")
+    .ilike("title", `%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (data) {
-    return NextResponse.json({
-      found: true,
-      slug: data.slug,
-    });
+  if (error || !data) {
+    return NextResponse.json({ found: false });
   }
 
-  return NextResponse.json({ found: false });
+  return NextResponse.json({
+    found: true,
+    slug: data.slug,
+  });
 }
